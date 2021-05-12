@@ -1,6 +1,6 @@
 [package]
 name = "huff-tree-tap"
-version = "0.0.1"
+version = "0.0.2"
 description = "Huffman Encoder and Decoder Library"
 authors = ["Alexis Lowe <alexis.lowe@protonmail.com>"]
 edition = "2018"
@@ -8,7 +8,7 @@ repository = "https://github.com/chimbosonic/huff-tree-tap/"
 license = "MIT"
 readme = "README.md"
 keywords = ["huffman", "compression"]
-categories = ["No standard library","Algorithms","Compression"]
+categories = ["algorithms","compression"]
 
 
 [dependencies]
