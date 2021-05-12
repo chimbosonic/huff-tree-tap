@@ -1,11 +1,10 @@
-# huff-tree-tap
-Huffman Encoder and Decoder Library
-
 [![Crate][crate_img]][crate]
 [![License][license_img]][license_file]
 [![Crate Downloads][downloads_img]][crate]
 [![Crate Size][loc_img]][loc]
 
+# huff-tree-tap
+Huffman Encoder and Decoder Library
 
 # Example usage
 Cargo.toml:
