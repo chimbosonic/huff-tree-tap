@@ -1,0 +1,16 @@
+name: release
+on:
+  release:
+    types:
+      - created
+env:
+  CARGO_TERM_COLOR: always
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: publish
+      env:
+        crates_token: ${{ secrets.crates_token }}
+      run: cargo publish --locked --token ${crates_token}  --verbose
