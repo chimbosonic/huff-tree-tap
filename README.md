@@ -33,4 +33,4 @@ let encoding_map: HashMap<u8,String> = huffman_data.encoding_map; // The encodin
 [license_img]: https://img.shields.io/crates/l/huff-tree-tap.svg "License Display"
 [loc]: https://github.com/chimbosonic/huff-tree-tap "Repository"
 [loc_img]: https://tokei.rs/b1/github/chimbosonic/huff-tree-tap?category=code "Repository Size"
-[actions]: https://github.com/chimbosonic/huff-tree-tap/actions/workflows/rust.yml/badge.svg
+[actions]: https://github.com/chimbosonic/huff-tree-tap/actions/workflows/build.yml/badge.svg
