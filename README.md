@@ -1,4 +1,4 @@
-![crates.io](https://img.shields.io/crates/v/huff-tree-tap.svg)(https://crates.io/crates/huff-tree-tap)
+[![crates.io](https://img.shields.io/crates/v/huff-tree-tap.svg)](https://crates.io/crates/huff-tree-tap)
 # huff-tree-tap
 Huffman Encoder and Decoder Library
 
