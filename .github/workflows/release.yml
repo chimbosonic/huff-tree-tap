@@ -1,16 +1,35 @@
 name: release
 on:
-  release:
-    types:
-      - created
+  push:
+    tags:
+      - 'v*'
+
 env:
   CARGO_TERM_COLOR: always
 jobs:
-  build:
+  create-release-and-publish-crate:
     runs-on: ubuntu-latest
+    outputs:
+      release_upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
-    - uses: actions/checkout@v2
-    - name: publish
-      env:
-        crates_token: ${{ secrets.crates_token }}
-      run: cargo publish --locked --token ${crates_token}  --verbose
+      - uses: actions/checkout@v3
+      
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Publish Crate
+        env:
+          crates_token: ${{ secrets.crates_token }}
+        run: cargo publish --locked --token ${crates_token} --verbose
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
