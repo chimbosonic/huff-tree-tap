@@ -6,15 +6,18 @@ use std::collections::HashMap;
 
 // Public Structs and Functions
 
+/// Huffman encoded data
 #[derive(Serialize, Deserialize, Debug)]
 pub struct HuffmanData {
+    /// The encoded data as a `Vec<u8>`
     pub encoded_data: Vec<u8>,
+    /// Encoding map stored as a `HashMap<u8,String>` required for decoding the data
     pub encoding_map: HashMap<u8,String>,
 }
 
 
-//Takes a Hex String and a HashMap containing the Encoding map
-//Huffman Decodes it using the encoding map returns a string
+/// Returns Huffman decoded data from a given `HuffmanData` struct
+///Huffman Decodes it using the encoding map returns a string
 pub fn huffman_decode(huffman_encoded_data: &HuffmanData) -> Vec<u8> {
     let encoded_data_bin_string_padded = u8_vec_to_bin_string(&huffman_encoded_data.encoded_data);
     let encoded_data_bin_string = unpad_encoded_data(&encoded_data_bin_string_padded);
@@ -23,7 +26,24 @@ pub fn huffman_decode(huffman_encoded_data: &HuffmanData) -> Vec<u8> {
     return decoded_data;
 }
 
-//Takes a String and Huffman Encodes it returning a Hex version of the string and a HashMap containing the Encoding map
+/// Huffman encodes a `Vec<u8>` returning a `HuffmanData` struct
+///
+/// # Arguments
+///
+/// * `data` - A reference to `Vec<u8>` containing the data you want to encode
+///
+/// # Examples
+///
+/// ```
+/// extern crate huff_tree_tap;
+/// use  huff_tree_tap::*;
+/// use std::collections::HashMap;
+/// 
+/// let data: Vec<u8> = "this is a test string!".to_string().into_bytes();
+/// let huffman_data: HuffmanData = huffman_encode(&data);
+/// let encoded_data: Vec<u8> = huffman_data.encoded_data; // The given data encoded
+/// let encoding_map: HashMap<u8,String> = huffman_data.encoding_map; // The encoding map required to decode the data
+/// ```
 pub fn huffman_encode(data: &Vec<u8>) -> HuffmanData {
     let frequency_map = build_frequency_map(&data);
     let huffman_tree = build_huffman_tree(&frequency_map);
@@ -41,6 +61,7 @@ pub fn huffman_encode(data: &Vec<u8>) -> HuffmanData {
 
 // Internal Structs and Functions
 
+/// Represents a Node of a Tree
 struct Node {
     left: Option<Box<Node>>,
     right: Option<Box<Node>>,
@@ -48,7 +69,7 @@ struct Node {
     value: Option<u8>,
 }
 
-//Creates a HashMap containing Nodes with the frequency of every u8 in given String
+/// Creates a HashMap containing Nodes with the frequency of every u8 in given String
 fn build_frequency_map(data: &Vec<u8>) -> HashMap<u8, i64> {
     let mut frequency_map: HashMap<u8, i64> = HashMap::new();
     for byte in data {
@@ -65,8 +86,8 @@ fn build_frequency_map(data: &Vec<u8>) -> HashMap<u8, i64> {
     return frequency_map;
 }
 
-//Creates a a Huffman Coding Tree with given Frequency Map
-// We sort the frequency list alphabetically then we sort it by frequency to give us consitancy in the tree we generate
+/// Creates a a Huffman Coding Tree with given Frequency Map
+/// We sort the frequency list alphabetically then we sort it by frequency to give us consitancy in the tree we generate
 fn build_huffman_tree(frequency_map: &HashMap<u8, i64>) -> Node {
     //Create a Vector of Nodes containing each u8 and their frequency
     let mut freq_list: Vec<Node> = Vec::new();
@@ -88,7 +109,7 @@ fn build_huffman_tree(frequency_map: &HashMap<u8, i64>) -> Node {
     return freq_list.pop().unwrap();
 }
 
-//Creates a Hash Map of the encoding of every u8 within a given Huffman Tree. Left node edges are 0s and right node edges are 1s
+/// Creates a Hash Map of the encoding of every u8 within a given Huffman Tree. Left node edges are 0s and right node edges are 1s
 fn build_encoding_map(node: &Node,encoding_map: &mut HashMap<u8, String>,code: String){
     match node.value {
         Some(value) => {
@@ -113,7 +134,7 @@ fn build_encoding_map(node: &Node,encoding_map: &mut HashMap<u8, String>,code: S
 }
 
 
-//Decodes a Binary string to a Vector of u8
+/// Decodes a Binary string to a Vector of u8
 fn bin_string_to_u8_vec(bin_string: &String) -> Vec<u8>{
     let mut temp_byte: String = String::new();
     let mut u8_vec: Vec<u8> = Vec::new();
@@ -131,7 +152,7 @@ fn bin_string_to_u8_vec(bin_string: &String) -> Vec<u8>{
     return u8_vec
 }
 
-//Encodes a Vector of u8 to a Binary string
+/// Encodes a Vector of u8 to a Binary string
 fn u8_vec_to_bin_string(u8_vec: &Vec<u8>) -> String{
     let mut bin_string: String = String::new();
     for byte in u8_vec {
@@ -140,7 +161,7 @@ fn u8_vec_to_bin_string(u8_vec: &Vec<u8>) -> String{
     return bin_string;
 }
 
-//Pads a given binary string by prefixing a 1 to every 7 bits
+/// Pads a given binary string by prefixing a 1 to every 7 bits
 fn pad_encoded_data(encoded_data: &String) -> String {
     let mut padded_encoded_data: String = String::new();
     let mut temp_padded_byte: String = "1".to_string();
@@ -157,7 +178,7 @@ fn pad_encoded_data(encoded_data: &String) -> String {
     return padded_encoded_data;
 }
 
-//Removes padding
+/// Removes padding
 fn unpad_encoded_data(padded_data: &String) -> String {
     let mut data: String = String::new();
     let mut temp_padded_byte: String =  String::new();
@@ -175,7 +196,7 @@ fn unpad_encoded_data(padded_data: &String) -> String {
     return data;
 }
 
-//Encodes string with given HashMap
+/// Encodes string with given HashMap
 fn huffman_encode_string(data: &Vec<u8>,encoding_map: &HashMap<u8, String>) -> String {
     let mut encoded_data = String::new();
     for c in data {
@@ -189,7 +210,7 @@ fn huffman_encode_string(data: &Vec<u8>,encoding_map: &HashMap<u8, String>) -> S
     return encoded_data;
 }
 
-//Decodes Huffman encoded binary string using provided encoding HashMap
+/// Decodes Huffman encoded binary string using provided encoding HashMap
 fn huffman_decode_bin_string(encoded_data: &String,encoding_map: &HashMap<u8, String>) -> Vec<u8>{
     let inverted_encoding_map = invert_encoding_map(&encoding_map);
     let mut data: Vec<u8> = Vec::new();
@@ -217,7 +238,7 @@ fn huffman_decode_bin_string(encoded_data: &String,encoding_map: &HashMap<u8, St
     return data;
 }
 
-//Inverts Keys and values for a given Encoding Map
+/// Inverts Keys and values for a given Encoding Map
 fn invert_encoding_map(encoding_map: &HashMap<u8, String>) -> HashMap<String, u8>{
     let mut inverted_encoding_map: HashMap<String, u8> = HashMap::new();
 
@@ -228,7 +249,7 @@ fn invert_encoding_map(encoding_map: &HashMap<u8, String>) -> HashMap<String, u8
 }
 
 
-//A cool idea would be to make this spit out a string for wasm to expose the stats.
+/// A cool idea would be to make this spit out a string for wasm to expose the stats.
 fn get_stats(data: &Vec<u8>,encoded_data: &Vec<u8>){
     let data_size = (data.len() * 8) as f32;
     let encoded_size = (encoded_data.len() * 8) as f32;
