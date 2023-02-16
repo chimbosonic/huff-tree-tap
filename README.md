@@ -17,11 +17,12 @@ huff_tree_tap = "*" # You can specify a version here if you want
 ```rust
 extern crate huff_tree_tap;
 use  huff_tree_tap::*;
+use std::collections::HashMap;
 
 let data: Vec<u8> = "this is a test string!".to_string().into_bytes();
-let huffman_data: HuffmanData = huffman_encode(&data);
-let encoded_data: Vec<u8> = huffman_data.encoded_data; // The given data encoded
-let encoding_map: HashMap<u8,String> = huffman_data.encoding_map; // The encoding map required to decode the data
+let huffman_data: HuffmanData = HuffmanData::new(&data).unwrap();
+let decoded_data: Vec<u8> = huffman_data.decode().unwrap();
+assert_eq!(decoded_data,data);
 
 ```
 
