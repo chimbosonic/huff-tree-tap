@@ -1,13 +1,13 @@
-extern crate hex;
-extern crate serde;
-
-use std::{collections::HashMap, fmt};
-
-use self::serde::{Deserialize, Serialize};
-mod node;
+mod encoding_map;
 pub mod encoding_stats;
-use node::Node;
+mod error;
+
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+use encoding_map::huffman_tree::Node;
 use encoding_stats::EncodingStats;
+use error::{HuffmanError, Result};
 
 /// Huffman encoded data
 #[derive(Serialize, Deserialize, Debug)]
@@ -18,26 +18,6 @@ pub struct HuffmanData {
     pub encoding_map: HashMap<u8, String>,
     pub stats: EncodingStats,
 }
-
-
-#[derive(Debug)]
-pub enum HuffmanError<'a> {
-    TreeError(&'a str),
-    ByteStringConversionError(&'a str),
-}
-
-impl fmt::Display for HuffmanError<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            HuffmanError::ByteStringConversionError(e) => {
-                write!(f, "Binary String Conversion Error: {}", e)
-            }
-            HuffmanError::TreeError(e) => write!(f, "Tree Error: {}", e),
-        }
-    }
-}
-
-type Result<T> = std::result::Result<T, HuffmanError<'static>>;
 
 impl HuffmanData {
     /// Huffman encodes a `Vec<u8>` returning a `HuffmanData` struct
@@ -59,8 +39,8 @@ impl HuffmanData {
     /// assert_eq!(decoded_data,data);
     /// ```
     pub fn new(data: &[u8]) -> Result<HuffmanData> {
-        let frequency_map = Self::build_frequency_map(data);
-        let huffman_tree = Self::build_huffman_tree(&frequency_map)?;
+        let frequency_map = encoding_map::frequency_map::build(data);
+        let huffman_tree = encoding_map::huffman_tree::build(&frequency_map)?;
         let mut encoding_map: HashMap<u8, String> = HashMap::new();
         Self::build_encoding_map(&huffman_tree, &mut encoding_map, "");
 
@@ -102,18 +82,6 @@ impl HuffmanData {
             Self::huffman_decode_bin_string(&encoded_data_bin_string, &self.encoding_map);
 
         Ok(decoded_data)
-    }
-
-    /// Creates a HashMap containing Nodes with the frequency of every u8 in given String
-    fn build_frequency_map(data: &[u8]) -> HashMap<u8, i64> {
-        let mut frequency_map: HashMap<u8, i64> = HashMap::new();
-        for &byte in data {
-            frequency_map
-                .entry(byte)
-                .and_modify(|e| *e += 1)
-                .or_insert(1);
-        }
-        frequency_map
     }
 
     /// Inverts Keys and values for a given Encoding Map
@@ -181,35 +149,6 @@ impl HuffmanData {
         let (_, byte) = temp_padded_byte.split_at(1);
         data += byte;
         data
-    }
-
-    /// Creates a a Huffman Coding Tree with given Frequency Map
-    /// We sort the frequency list alphabetically then we sort it by frequency to give us consitancy in the tree we generate
-    fn build_huffman_tree(frequency_map: &HashMap<u8, i64>) -> Result<Node> {
-        //Create a Vector of Nodes containing each u8 and their frequency
-        let mut freq_list: Vec<Node> = Vec::new();
-        for (&data, &freq) in frequency_map {
-            freq_list.push(Node::new_leaf(freq, Some(data)));
-        }
-
-        //Sort the Vector
-        freq_list.sort_by(|a, b| b.value.cmp(&a.value));
-        freq_list.sort_by(|a, b| b.freq.cmp(&a.freq));
-
-        while freq_list.len() != 1 {
-            let left_node = freq_list
-                .pop()
-                .ok_or(HuffmanError::TreeError("Missing Left Node"))?;
-            let right_node = freq_list
-                .pop()
-                .ok_or(HuffmanError::TreeError("Missing Right Node"))?;
-            let new_node = Node::new_branch(left_node, right_node);
-            freq_list.push(new_node);
-            freq_list.sort_by(|a, b| b.freq.cmp(&a.freq));
-        }
-        freq_list
-            .pop()
-            .ok_or(HuffmanError::TreeError("Missing Root Node"))
     }
 
     /// Creates a Hash Map of the encoding of every u8 within a given Huffman Tree. Left node edges are 0s and right node edges are 1s
@@ -339,32 +278,6 @@ mod tests {
     }
 
     #[test]
-    fn test_build_frequency_map() {
-        let input_data: Vec<u8> = Vec::from("this is a test string!");
-
-        let expected_data: HashMap<u8, i64> = [
-            (b'h', 1),
-            (b'a', 1),
-            (b' ', 4),
-            (b'g', 1),
-            (b'i', 3),
-            (b's', 4),
-            (b'!', 1),
-            (b'n', 1),
-            (b'r', 1),
-            (b't', 4),
-            (b'e', 1),
-        ]
-        .iter()
-        .copied()
-        .collect();
-
-        let test_output = HuffmanData::build_frequency_map(&input_data);
-
-        assert_eq!(expected_data, test_output);
-    }
-
-    #[test]
     fn test_build_huffman_tree_build_encoding_map() {
         let input_data: HashMap<u8, i64> = [
             (b'h', 1),
@@ -401,7 +314,7 @@ mod tests {
         .collect();
 
         // Create a huffman tree (Can't really test the output of this without coming up with a way to print it and build it manually)
-        let test_output_tree = HuffmanData::build_huffman_tree(&input_data).unwrap();
+        let test_output_tree = encoding_map::huffman_tree::build(&input_data).unwrap();
 
         // Create a encoding map from the tree this we can test better
         let mut test_output: HashMap<u8, String> = HashMap::new();

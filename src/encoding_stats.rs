@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-
 /// Encoding stats for a given data size and endcoded data size
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct EncodingStats {

@@ -1,5 +1,5 @@
-use huff_tree_tap::*;
 use huff_tree_tap::encoding_stats::*;
+use huff_tree_tap::*;
 use std::collections::HashMap;
 
 #[test]
