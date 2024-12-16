@@ -1,7 +1,7 @@
 use crate::error::{HuffmanError, Result};
-use std::collections::HashMap;
+use crate::frequency_map::FrequencyMap;
 
-/// INTERNAL ONLY: Represents a Node of a Tree
+#[derive(Debug)]
 pub struct Node {
     pub left: Option<Box<Node>>,
     pub right: Option<Box<Node>>,
@@ -32,7 +32,7 @@ impl Node {
 
 /// Creates a a Huffman Coding Tree with given Frequency Map
 /// We sort the frequency list alphabetically then we sort it by frequency to give us consitancy in the tree we generate
-pub fn build(frequency_map: &HashMap<u8, i64>) -> Result<Node> {
+pub fn build(frequency_map: &FrequencyMap) -> Result<Node> {
     //Create a Vector of Nodes containing each u8 and their frequency
     let mut freq_list: Vec<Node> = Vec::new();
     for (&data, &freq) in frequency_map {
@@ -57,4 +57,20 @@ pub fn build(frequency_map: &HashMap<u8, i64>) -> Result<Node> {
     freq_list
         .pop()
         .ok_or(HuffmanError::TreeError("Missing Root Node"))
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::frequency_map::FrequencyMapping;
+
+    use super::*;
+
+    #[test]
+    fn test_build_huffman_tree() {
+        let input_data: Vec<u8> = Vec::from("this is a test string!");
+        let frequency_map = FrequencyMap::build(&input_data);
+
+        // Create a huffman tree (Can't really test the output of this without coming up with a way to print it and build it manually)
+        let _test_output_tree = build(&frequency_map).unwrap();
+    }
 }

@@ -29,3 +29,24 @@ impl EncodingStats {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_encoding_stats() {
+        let data = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        let encoded_data = vec![1, 2, 3, 4, 5];
+        let expected_data = EncodingStats {
+            data_size: 80_f32,
+            encoded_size: 40_f32,
+            ratio: 50_f32,
+        };
+
+        let test_ouput = EncodingStats::new(&data, &encoded_data);
+
+        assert_eq!(expected_data, test_ouput);
+    }
+}
