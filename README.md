@@ -19,11 +19,10 @@ extern crate huff_tree_tap;
 use  huff_tree_tap::*;
 use std::collections::HashMap;
 
-let data: Vec<u8> = "this is a test string!".to_string().into_bytes();
+let data: Vec<u8> = Vec::from("this is a test string!");
 let huffman_data: HuffmanData = HuffmanData::new(&data).unwrap();
 let decoded_data: Vec<u8> = huffman_data.decode().unwrap();
 assert_eq!(decoded_data,data);
-
 ```
 
 <!-- Badges -->
