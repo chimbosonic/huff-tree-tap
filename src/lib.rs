@@ -4,6 +4,8 @@ extern crate serde;
 use std::collections::HashMap;
 
 use self::serde::{Deserialize, Serialize};
+mod node;
+use node::Node;
 
 /// Huffman encoded data
 #[derive(Serialize, Deserialize, Debug)]
@@ -16,7 +18,7 @@ pub struct HuffmanData {
 }
 
 /// Encoding stats for a given data size and endcoded data size
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct EncodingStats {
     /// Size of the data
     pub data_size: f32,
@@ -24,14 +26,6 @@ pub struct EncodingStats {
     pub encoded_size: f32,
     /// Compression ratio
     pub ratio: f32,
-}
-
-/// INTERNAL ONLY: Represents a Node of a Tree
-struct Node {
-    left: Option<Box<Node>>,
-    right: Option<Box<Node>>,
-    freq: i64,
-    value: Option<u8>,
 }
 
 impl EncodingStats {
@@ -46,9 +40,9 @@ impl EncodingStats {
         let encoded_size = (encoded_data.len() * 8) as f32;
         let ratio = (1_f32 - (encoded_size / data_size)) * 100_f32;
         EncodingStats {
-         data_size,
-         encoded_size,
-         ratio,
+            data_size,
+            encoded_size,
+            ratio,
         }
     }
 }
@@ -67,7 +61,7 @@ impl HuffmanData {
     /// use  huff_tree_tap::*;
     /// use std::collections::HashMap;
     ///
-    /// let data: Vec<u8> = "this is a test string!".to_string().into_bytes();
+    /// let data: Vec<u8> = Vec::<u8>::from("this is a test string!");
     /// let huffman_data: HuffmanData = HuffmanData::new(&data).unwrap();
     /// let decoded_data: Vec<u8> = huffman_data.decode().unwrap();
     /// assert_eq!(decoded_data,data);
@@ -76,7 +70,7 @@ impl HuffmanData {
         let frequency_map = Self::build_frequency_map(data);
         let huffman_tree = Self::build_huffman_tree(&frequency_map);
         let mut encoding_map: HashMap<u8, String> = HashMap::new();
-        Self::build_encoding_map(&huffman_tree, &mut encoding_map, "".to_string());
+        Self::build_encoding_map(&huffman_tree, &mut encoding_map, "");
 
         let encoded_data = Self::huffman_encode_string(data, &encoding_map);
         let encoded_data = Self::pad_encoded_data(&encoded_data);
@@ -86,7 +80,7 @@ impl HuffmanData {
         let huffman_encoded_data = HuffmanData {
             encoded_data,
             encoding_map,
-            stats
+            stats,
         };
         Ok(huffman_encoded_data)
     }
@@ -104,7 +98,7 @@ impl HuffmanData {
     /// use  huff_tree_tap::*;
     /// use std::collections::HashMap;
     ///
-    /// let data: Vec<u8> = "this is a test string!".to_string().into_bytes();
+    /// let data: Vec<u8> = Vec::from("this is a test string!");
     /// let huffman_data: HuffmanData = HuffmanData::new(&data).unwrap();
     /// let decoded_data: Vec<u8> = huffman_data.decode().unwrap();
     /// assert_eq!(decoded_data,data);
@@ -122,7 +116,10 @@ impl HuffmanData {
     fn build_frequency_map(data: &[u8]) -> HashMap<u8, i64> {
         let mut frequency_map: HashMap<u8, i64> = HashMap::new();
         for &byte in data {
-            frequency_map.entry(byte).and_modify(|e| *e+=1).or_insert(1);
+            frequency_map
+                .entry(byte)
+                .and_modify(|e| *e += 1)
+                .or_insert(1);
         }
         frequency_map
     }
@@ -131,8 +128,8 @@ impl HuffmanData {
     fn invert_encoding_map(encoding_map: &HashMap<u8, String>) -> HashMap<String, u8> {
         let mut inverted_encoding_map: HashMap<String, u8> = HashMap::new();
 
-        for (key, value) in encoding_map {
-            inverted_encoding_map.insert(value.to_owned(), *key);
+        for (&key, value) in encoding_map {
+            inverted_encoding_map.insert(value.to_owned(), key);
         }
         inverted_encoding_map
     }
@@ -148,9 +145,9 @@ impl HuffmanData {
         let mut encoded_data_rev = encoded_data.chars().rev().collect::<String>();
         loop {
             match inverted_encoding_map.get(&temp_code) {
-                Some(byte) => {
-                    temp_code = "".to_string();
-                    data.push(*byte);
+                Some(&byte) => {
+                    temp_code = String::from("");
+                    data.push(byte);
                 }
                 None => match encoded_data_rev.pop() {
                     Some(code) => {
@@ -170,7 +167,7 @@ impl HuffmanData {
         let mut encoded_data = String::new();
         for c in data {
             if let Some(code) = encoding_map.get(c) {
-                encoded_data = encoded_data + code;
+                encoded_data += code;
             }
         }
         encoded_data
@@ -187,7 +184,7 @@ impl HuffmanData {
                 data += byte;
                 temp_padded_byte = String::new();
             }
-            temp_padded_byte += &bit.to_string();
+            temp_padded_byte.push(bit);
         }
         let (_, byte) = temp_padded_byte.split_at(1);
         data += byte;
@@ -199,28 +196,16 @@ impl HuffmanData {
     fn build_huffman_tree(frequency_map: &HashMap<u8, i64>) -> Node {
         //Create a Vector of Nodes containing each u8 and their frequency
         let mut freq_list: Vec<Node> = Vec::new();
-        for (data, freq) in frequency_map {
-            freq_list.push(Node {
-                left: None,
-                right: None,
-                value: Some(*data),
-                freq: *freq,
-            });
+        for (&data, &freq) in frequency_map {
+            freq_list.push(Node::new_leaf(freq, Some(data)));
         }
+
         //Sort the Vector
         freq_list.sort_by(|a, b| b.value.cmp(&a.value));
         freq_list.sort_by(|a, b| b.freq.cmp(&a.freq));
 
         while freq_list.len() != 1 {
-            let left_node = freq_list.pop().unwrap();
-            let right_node = freq_list.pop().unwrap();
-            let new_node_freq = left_node.freq + right_node.freq;
-            let new_node = Node {
-                left: Some(Box::new(left_node)),
-                right: Some(Box::new(right_node)),
-                value: None,
-                freq: new_node_freq,
-            };
+            let new_node = Node::new_branch(freq_list.pop().unwrap(), freq_list.pop().unwrap());
             freq_list.push(new_node);
             freq_list.sort_by(|a, b| b.freq.cmp(&a.freq));
         }
@@ -228,21 +213,21 @@ impl HuffmanData {
     }
 
     /// Creates a Hash Map of the encoding of every u8 within a given Huffman Tree. Left node edges are 0s and right node edges are 1s
-    fn build_encoding_map(node: &Node, encoding_map: &mut HashMap<u8, String>, code: String) {
+    fn build_encoding_map(node: &Node, encoding_map: &mut HashMap<u8, String>, code: &str) {
         match node.value {
             Some(value) => {
-                encoding_map.insert(value, code);
+                encoding_map.insert(value, code.to_string());
             }
             None => {
                 match &node.left {
                     Some(left) => {
-                        Self::build_encoding_map(left, encoding_map, code.clone() + "0");
+                        Self::build_encoding_map(left, encoding_map, &format!("{}{}", code, "0"));
                     }
                     None => {}
                 }
                 match &node.right {
                     Some(right) => {
-                        Self::build_encoding_map(right, encoding_map, code.clone() + "1");
+                        Self::build_encoding_map(right, encoding_map, &format!("{}{}", code, "1"));
                     }
                     None => {}
                 }
@@ -257,13 +242,15 @@ impl HuffmanData {
 
         for bit in bin_string.chars() {
             if temp_byte.len() == 8 {
-                let u8_byte = u8::from_str_radix(temp_byte.as_str(), 2).unwrap();
+                let u8_byte = u8::from_str_radix(&temp_byte, 2)
+                    .expect("Binary String passed contained a non-bit 0/1");
                 u8_vec.push(u8_byte);
-                temp_byte = "".to_string();
+                temp_byte = String::new();
             }
             temp_byte.push(bit);
         }
-        let u8_value = u8::from_str_radix(temp_byte.as_str(), 2).unwrap();
+        let u8_value = u8::from_str_radix(&temp_byte, 2)
+            .expect("Binary String passed contained a non-bit 0/1");
         u8_vec.push(u8_value);
         u8_vec
     }
@@ -272,7 +259,7 @@ impl HuffmanData {
     fn u8_vec_to_bin_string(u8_vec: &[u8]) -> String {
         let mut bin_string: String = String::new();
         for byte in u8_vec {
-            bin_string += format!("{:b}", byte).as_str();
+            bin_string.push_str(format!("{:b}", byte).as_str());
         }
         bin_string
     }
@@ -280,16 +267,16 @@ impl HuffmanData {
     /// Pads a given binary string by prefixing a 1 to every 7 bits
     fn pad_encoded_data(encoded_data: &str) -> String {
         let mut padded_encoded_data: String = String::new();
-        let mut temp_padded_byte: String = "1".to_string();
+        let mut temp_padded_byte: String = String::from("1");
 
         for bit in encoded_data.chars() {
             if temp_padded_byte.len() > 7 {
-                padded_encoded_data += temp_padded_byte.as_str();
-                temp_padded_byte = "1".to_string();
+                padded_encoded_data.push_str(&temp_padded_byte);
+                temp_padded_byte = String::from("1");
             }
-            temp_padded_byte = temp_padded_byte + &bit.to_string();
+            temp_padded_byte.push(bit);
         }
-        padded_encoded_data += temp_padded_byte.as_str();
+        padded_encoded_data.push_str(&temp_padded_byte);
         padded_encoded_data
     }
 }
@@ -301,9 +288,9 @@ mod tests {
 
     #[test]
     fn test_pad_encoded_data() {
-        let input_data = "1011100101010000010100000110100101110101001010011011111000111001111011101001001010111010111111100001100".to_string();
+        let input_data = "1011100101010000010100000110100101110101001010011011111000111001111011101001001010111010111111100001100";
 
-        let expected_data = "1101110011010100100010101000011011001011110101001101001110111110100111001111101111010010101010111101011111111000101100".to_string();
+        let expected_data = "1101110011010100100010101000011011001011110101001101001110111110100111001111101111010010101010111101011111111000101100";
 
         let test_output = HuffmanData::pad_encoded_data(&input_data);
 
@@ -312,9 +299,9 @@ mod tests {
 
     #[test]
     fn test_unpad_encoded_data() {
-        let input_data = "1101110011010100100010101000011011001011110101001101001110111110100111001111101111010010101010111101011111111000101100".to_string();
+        let input_data = "1101110011010100100010101000011011001011110101001101001110111110100111001111101111010010101010111101011111111000101100";
 
-        let expected_data = "1011100101010000010100000110100101110101001010011011111000111001111011101001001010111010111111100001100".to_string();
+        let expected_data = "1011100101010000010100000110100101110101001010011011111000111001111011101001001010111010111111100001100";
 
         let test_output = HuffmanData::unpad_encoded_data(&input_data);
 
@@ -323,7 +310,7 @@ mod tests {
 
     #[test]
     fn test_bin_string_to_u8_vec() {
-        let input_data = "1101110011010100100010101000011011001011110101001101001110111110100111001111101111010010101010111101011111111000101100".to_string();
+        let input_data = "1101110011010100100010101000011011001011110101001101001110111110100111001111101111010010101010111101011111111000101100";
 
         let expected_data: Vec<u8> = vec![
             220, 212, 138, 134, 203, 212, 211, 190, 156, 251, 210, 171, 215, 248, 44,
@@ -340,7 +327,7 @@ mod tests {
             220, 212, 138, 134, 203, 212, 211, 190, 156, 251, 210, 171, 215, 248, 44,
         ];
 
-        let expected_data = "1101110011010100100010101000011011001011110101001101001110111110100111001111101111010010101010111101011111111000101100".to_string();
+        let expected_data = "1101110011010100100010101000011011001011110101001101001110111110100111001111101111010010101010111101011111111000101100";
 
         let test_output = HuffmanData::u8_vec_to_bin_string(&input_data);
 
@@ -349,20 +336,24 @@ mod tests {
 
     #[test]
     fn test_build_frequency_map() {
-        let input_data: Vec<u8> = "this is a test string!".to_string().into_bytes();
+        let input_data: Vec<u8> = Vec::from("this is a test string!");
 
-        let mut expected_data: HashMap<u8, i64> = HashMap::new();
-        expected_data.insert(b'h', 1);
-        expected_data.insert(b'a', 1);
-        expected_data.insert(b' ', 4);
-        expected_data.insert(b'g', 1);
-        expected_data.insert(b'i', 3);
-        expected_data.insert(b's', 4);
-        expected_data.insert(b'!', 1);
-        expected_data.insert(b'n', 1);
-        expected_data.insert(b'r', 1);
-        expected_data.insert(b't', 4);
-        expected_data.insert(b'e', 1);
+        let expected_data: HashMap<u8, i64> = [
+            (b'h', 1),
+            (b'a', 1),
+            (b' ', 4),
+            (b'g', 1),
+            (b'i', 3),
+            (b's', 4),
+            (b'!', 1),
+            (b'n', 1),
+            (b'r', 1),
+            (b't', 4),
+            (b'e', 1),
+        ]
+        .iter()
+        .copied()
+        .collect();
 
         let test_output = HuffmanData::build_frequency_map(&input_data);
 
@@ -371,38 +362,46 @@ mod tests {
 
     #[test]
     fn test_build_huffman_tree_build_encoding_map() {
-        let mut input_data: HashMap<u8, i64> = HashMap::new();
-        input_data.insert(b'h', 1);
-        input_data.insert(b'a', 1);
-        input_data.insert(b' ', 4);
-        input_data.insert(b'g', 1);
-        input_data.insert(b'i', 3);
-        input_data.insert(b's', 4);
-        input_data.insert(b'!', 1);
-        input_data.insert(b'n', 1);
-        input_data.insert(b'r', 1);
-        input_data.insert(b't', 4);
-        input_data.insert(b'e', 1);
+        let input_data: HashMap<u8, i64> = [
+            (b'h', 1),
+            (b'a', 1),
+            (b' ', 4),
+            (b'g', 1),
+            (b'i', 3),
+            (b's', 4),
+            (b'!', 1),
+            (b'n', 1),
+            (b'r', 1),
+            (b't', 4),
+            (b'e', 1),
+        ]
+        .iter()
+        .copied()
+        .collect();
 
-        let mut expected_data: HashMap<u8, String> = HashMap::new();
-        expected_data.insert(b'h', "10010".to_string());
-        expected_data.insert(b'a', "0011".to_string());
-        expected_data.insert(b' ', "01".to_string());
-        expected_data.insert(b'g', "0001".to_string());
-        expected_data.insert(b'i', "101".to_string());
-        expected_data.insert(b's', "110".to_string());
-        expected_data.insert(b'!', "0010".to_string());
-        expected_data.insert(b'n', "10011".to_string());
-        expected_data.insert(b'r', "1000".to_string());
-        expected_data.insert(b't', "111".to_string());
-        expected_data.insert(b'e', "0000".to_string());
+        let expected_data: HashMap<u8, String> = [
+            (b'h', "10010"),
+            (b'a', "0011"),
+            (b' ', "01"),
+            (b'g', "0001"),
+            (b'i', "101"),
+            (b's', "110"),
+            (b'!', "0010"),
+            (b'n', "10011"),
+            (b'r', "1000"),
+            (b't', "111"),
+            (b'e', "0000"),
+        ]
+        .iter()
+        .map(|(k, v)| (*k, v.to_string()))
+        .collect();
 
         // Create a huffman tree (Can't really test the output of this without coming up with a way to print it and build it manually)
         let test_output_tree = HuffmanData::build_huffman_tree(&input_data);
 
         // Create a encoding map from the tree this we can test better
         let mut test_output: HashMap<u8, String> = HashMap::new();
-        HuffmanData::build_encoding_map(&test_output_tree, &mut test_output, "".to_string());
+        HuffmanData::build_encoding_map(&test_output_tree, &mut test_output, "");
 
         assert_eq!(expected_data, test_output);
     }
@@ -410,37 +409,37 @@ mod tests {
     #[test]
     fn test_invert_encoding_map() {
         let input_data: HashMap<u8, String> = [
-            (b'h', "10010".to_string()),
-            (b'a', "0011".to_string()),
-            (b' ', "01".to_string()),
-            (b'g', "0001".to_string()),
-            (b'i', "101".to_string()),
-            (b's', "110".to_string()),
-            (b'!', "0010".to_string()),
-            (b'n', "10011".to_string()),
-            (b'r', "1000".to_string()),
-            (b't', "111".to_string()),
-            (b'e', "0000".to_string()),
+            (b'h', "10010"),
+            (b'a', "0011"),
+            (b' ', "01"),
+            (b'g', "0001"),
+            (b'i', "101"),
+            (b's', "110"),
+            (b'!', "0010"),
+            (b'n', "10011"),
+            (b'r', "1000"),
+            (b't', "111"),
+            (b'e', "0000"),
         ]
         .iter()
-        .cloned()
+        .map(|(k, v)| (*k, v.to_string()))
         .collect();
 
         let expected_data: HashMap<String, u8> = [
-            ("10010".to_string(), b'h'),
-            ("0011".to_string(), b'a'),
-            ("01".to_string(), b' '),
-            ("0001".to_string(), b'g'),
-            ("101".to_string(), b'i'),
-            ("110".to_string(), b's'),
-            ("0010".to_string(), b'!'),
-            ("10011".to_string(), b'n'),
-            ("1000".to_string(), b'r'),
-            ("111".to_string(), b't'),
-            ("0000".to_string(), b'e'),
+            ("10010", b'h'),
+            ("0011", b'a'),
+            ("01", b' '),
+            ("0001", b'g'),
+            ("101", b'i'),
+            ("110", b's'),
+            ("0010", b'!'),
+            ("10011", b'n'),
+            ("1000", b'r'),
+            ("111", b't'),
+            ("0000", b'e'),
         ]
         .iter()
-        .cloned()
+        .map(|(k, v)| (k.to_string(), *v))
         .collect();
         let test_output = HuffmanData::invert_encoding_map(&input_data);
 
@@ -449,26 +448,26 @@ mod tests {
 
     #[test]
     fn test_huffman_encode_string() {
-        let input_data: Vec<u8> = "this is a test string!".to_string().into_bytes();
+        let input_data: Vec<u8> = Vec::from("this is a test string!");
         let input_encoding_map: HashMap<u8, String> = [
-            (b'h', "10010".to_string()),
-            (b'a', "0011".to_string()),
-            (b' ', "01".to_string()),
-            (b'g', "0001".to_string()),
-            (b'i', "101".to_string()),
-            (b's', "110".to_string()),
-            (b'!', "0010".to_string()),
-            (b'n', "10011".to_string()),
-            (b'r', "1000".to_string()),
-            (b't', "111".to_string()),
-            (b'e', "0000".to_string()),
+            (b'h', "10010"),
+            (b'a', "0011"),
+            (b' ', "01"),
+            (b'g', "0001"),
+            (b'i', "101"),
+            (b's', "110"),
+            (b'!', "0010"),
+            (b'n', "10011"),
+            (b'r', "1000"),
+            (b't', "111"),
+            (b'e', "0000"),
         ]
         .iter()
-        .cloned()
+        .map(|(k, v)| (*k, v.to_string()))
         .collect();
 
-        let expected_data: String =
-            "11110010101110011011100100110111100001101110111011110001011001100010010".to_string();
+        let expected_data =
+            "11110010101110011011100100110111100001101110111011110001011001100010010";
 
         let test_output = HuffmanData::huffman_encode_string(&input_data, &input_encoding_map);
 
@@ -477,26 +476,25 @@ mod tests {
 
     #[test]
     fn test_huffman_decode_bin_string() {
-        let input_data: String =
-            "11110010101110011011100100110111100001101110111011110001011001100010010".to_string();
+        let input_data = "11110010101110011011100100110111100001101110111011110001011001100010010";
         let input_encoding_map: HashMap<u8, String> = [
-            (b'h', "10010".to_string()),
-            (b'a', "0011".to_string()),
-            (b' ', "01".to_string()),
-            (b'g', "0001".to_string()),
-            (b'i', "101".to_string()),
-            (b's', "110".to_string()),
-            (b'!', "0010".to_string()),
-            (b'n', "10011".to_string()),
-            (b'r', "1000".to_string()),
-            (b't', "111".to_string()),
-            (b'e', "0000".to_string()),
+            (b'h', "10010"),
+            (b'a', "0011"),
+            (b' ', "01"),
+            (b'g', "0001"),
+            (b'i', "101"),
+            (b's', "110"),
+            (b'!', "0010"),
+            (b'n', "10011"),
+            (b'r', "1000"),
+            (b't', "111"),
+            (b'e', "0000"),
         ]
         .iter()
-        .cloned()
+        .map(|(k, v)| (*k, v.to_string()))
         .collect();
 
-        let expected_data: Vec<u8> = "this is a test string!".to_string().into_bytes();
+        let expected_data: Vec<u8> = Vec::from("this is a test string!");
 
         let test_output = HuffmanData::huffman_decode_bin_string(&input_data, &input_encoding_map);
 

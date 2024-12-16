@@ -89,5 +89,15 @@ fn test_bench() {
         unencoded_data.append(&mut vec![b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h']);
     }
     let encoded_data = HuffmanData::new(&unencoded_data).unwrap();
+
+    assert_eq!(
+        encoded_data.stats,
+        EncodingStats {
+            data_size: 64000.0,
+            encoded_size: 27432.0,
+            ratio: 57.1375,
+        }
+    );
+
     assert_eq!(encoded_data.decode().unwrap(), unencoded_data);
 }
