@@ -1,4 +1,5 @@
 use huff_tree_tap::*;
+use huff_tree_tap::encoding_stats::*;
 use std::collections::HashMap;
 
 #[test]
