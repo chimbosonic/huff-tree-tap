@@ -1,7 +1,7 @@
 extern crate hex;
 extern crate serde;
 
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt};
 
 use self::serde::{Deserialize, Serialize};
 mod node;
@@ -47,6 +47,25 @@ impl EncodingStats {
     }
 }
 
+#[derive(Debug)]
+pub enum HuffmanError<'a> {
+    TreeError(&'a str),
+    ByteStringConversionError(&'a str),
+}
+
+impl fmt::Display for HuffmanError<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            HuffmanError::ByteStringConversionError(e) => {
+                write!(f, "Binary String Conversion Error: {}", e)
+            }
+            HuffmanError::TreeError(e) => write!(f, "Tree Error: {}", e),
+        }
+    }
+}
+
+type Result<T> = std::result::Result<T, HuffmanError<'static>>;
+
 impl HuffmanData {
     /// Huffman encodes a `Vec<u8>` returning a `HuffmanData` struct
     ///
@@ -66,15 +85,15 @@ impl HuffmanData {
     /// let decoded_data: Vec<u8> = huffman_data.decode().unwrap();
     /// assert_eq!(decoded_data,data);
     /// ```
-    pub fn new(data: &[u8]) -> Result<HuffmanData, &'static str> {
+    pub fn new(data: &[u8]) -> Result<HuffmanData> {
         let frequency_map = Self::build_frequency_map(data);
-        let huffman_tree = Self::build_huffman_tree(&frequency_map);
+        let huffman_tree = Self::build_huffman_tree(&frequency_map)?;
         let mut encoding_map: HashMap<u8, String> = HashMap::new();
         Self::build_encoding_map(&huffman_tree, &mut encoding_map, "");
 
         let encoded_data = Self::huffman_encode_string(data, &encoding_map);
         let encoded_data = Self::pad_encoded_data(&encoded_data);
-        let encoded_data = Self::bin_string_to_u8_vec(&encoded_data);
+        let encoded_data = Self::bin_string_to_u8_vec(&encoded_data)?;
         let stats = EncodingStats::new(data, &encoded_data);
 
         let huffman_encoded_data = HuffmanData {
@@ -103,7 +122,7 @@ impl HuffmanData {
     /// let decoded_data: Vec<u8> = huffman_data.decode().unwrap();
     /// assert_eq!(decoded_data,data);
     /// ```
-    pub fn decode(&self) -> Result<Vec<u8>, &'static str> {
+    pub fn decode(&self) -> Result<Vec<u8>> {
         let encoded_data_bin_string_padded = Self::u8_vec_to_bin_string(&self.encoded_data);
         let encoded_data_bin_string = Self::unpad_encoded_data(&encoded_data_bin_string_padded);
         let decoded_data =
@@ -193,7 +212,7 @@ impl HuffmanData {
 
     /// Creates a a Huffman Coding Tree with given Frequency Map
     /// We sort the frequency list alphabetically then we sort it by frequency to give us consitancy in the tree we generate
-    fn build_huffman_tree(frequency_map: &HashMap<u8, i64>) -> Node {
+    fn build_huffman_tree(frequency_map: &HashMap<u8, i64>) -> Result<Node> {
         //Create a Vector of Nodes containing each u8 and their frequency
         let mut freq_list: Vec<Node> = Vec::new();
         for (&data, &freq) in frequency_map {
@@ -205,11 +224,19 @@ impl HuffmanData {
         freq_list.sort_by(|a, b| b.freq.cmp(&a.freq));
 
         while freq_list.len() != 1 {
-            let new_node = Node::new_branch(freq_list.pop().unwrap(), freq_list.pop().unwrap());
+            let left_node = freq_list
+                .pop()
+                .ok_or(HuffmanError::TreeError("Missing Left Node"))?;
+            let right_node = freq_list
+                .pop()
+                .ok_or(HuffmanError::TreeError("Missing Right Node"))?;
+            let new_node = Node::new_branch(left_node, right_node);
             freq_list.push(new_node);
             freq_list.sort_by(|a, b| b.freq.cmp(&a.freq));
         }
-        freq_list.pop().unwrap()
+        freq_list
+            .pop()
+            .ok_or(HuffmanError::TreeError("Missing Root Node"))
     }
 
     /// Creates a Hash Map of the encoding of every u8 within a given Huffman Tree. Left node edges are 0s and right node edges are 1s
@@ -236,23 +263,27 @@ impl HuffmanData {
     }
 
     /// Decodes a Binary string to a Vector of u8
-    fn bin_string_to_u8_vec(bin_string: &str) -> Vec<u8> {
+    fn bin_string_to_u8_vec(bin_string: &str) -> Result<Vec<u8>> {
         let mut temp_byte: String = String::new();
         let mut u8_vec: Vec<u8> = Vec::new();
 
         for bit in bin_string.chars() {
             if temp_byte.len() == 8 {
-                let u8_byte = u8::from_str_radix(&temp_byte, 2)
-                    .expect("Binary String passed contained a non-bit 0/1");
+                let u8_byte = Self::convert_byte_string_u8(&temp_byte)?;
                 u8_vec.push(u8_byte);
                 temp_byte = String::new();
             }
             temp_byte.push(bit);
         }
-        let u8_value = u8::from_str_radix(&temp_byte, 2)
-            .expect("Binary String passed contained a non-bit 0/1");
+        let u8_value = Self::convert_byte_string_u8(&temp_byte)?;
         u8_vec.push(u8_value);
-        u8_vec
+        Ok(u8_vec)
+    }
+
+    fn convert_byte_string_u8(byte_string: &str) -> Result<u8> {
+        u8::from_str_radix(byte_string, 2).map_err(|_| {
+            HuffmanError::ByteStringConversionError("Binary String passed contained a non-bit 0/1")
+        })
     }
 
     /// Encodes a Vector of u8 to a Binary string
@@ -316,7 +347,7 @@ mod tests {
             220, 212, 138, 134, 203, 212, 211, 190, 156, 251, 210, 171, 215, 248, 44,
         ];
 
-        let test_output = HuffmanData::bin_string_to_u8_vec(&input_data);
+        let test_output = HuffmanData::bin_string_to_u8_vec(&input_data).unwrap();
 
         assert_eq!(expected_data, test_output);
     }
@@ -397,7 +428,7 @@ mod tests {
         .collect();
 
         // Create a huffman tree (Can't really test the output of this without coming up with a way to print it and build it manually)
-        let test_output_tree = HuffmanData::build_huffman_tree(&input_data);
+        let test_output_tree = HuffmanData::build_huffman_tree(&input_data).unwrap();
 
         // Create a encoding map from the tree this we can test better
         let mut test_output: HashMap<u8, String> = HashMap::new();
