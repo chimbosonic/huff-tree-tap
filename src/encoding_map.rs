@@ -13,19 +13,56 @@ pub struct EncodingMap {
     inverse_map: InverseMap,
 }
 
-pub type Code = String;
+pub type Bit = u8;
+
+pub type Code = Vec<Bit>;
+
+
+trait ToFromChar {
+    fn to_char(&self) -> char;
+    fn from_char(c: char) -> Self;
+}
+
+impl ToFromChar for Bit {
+    fn to_char(&self) -> char {
+        match self {
+            0 => '0',
+            1 => '1',
+            _ => panic!("Invalid bit"),
+        }
+    }
+
+    fn from_char(c: char) -> Self {
+        match c {
+            '0' => 0,
+            '1' => 1,
+            _ => panic!("Invalid bit"),
+        }
+    }
+}
 
 trait Codeable {
     fn new_code() -> Code;
     fn extend_code(&self, bit: char) -> Code;
+    fn to_string(&self) -> String;
 }
 impl Codeable for Code {
     fn new_code() -> Code {
-        String::new()
+        Vec::<u8>::new()
+    }
+
+    fn to_string(&self) -> String {
+        self.iter()
+            .map(|bit| {
+                bit.to_char()
+            })
+            .collect()
     }
 
     fn extend_code(&self, bit: char) -> Code {
-        format!("{}{}", self, bit)
+        let mut code = self.clone();
+        code.push(Bit::from_char(bit));
+        code
     }
 }
 
@@ -60,7 +97,7 @@ impl EncodingMap {
     fn build_encoding_map(node: &Node, map: &mut Map, code: &Code) {
         match node.value {
             Some(value) => {
-                map.insert(value, code.to_string());
+                map.insert(value, Codeable::to_string(code));
             }
             None => {
                 if let Some(left) = &node.left {
