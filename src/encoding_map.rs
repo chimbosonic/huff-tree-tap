@@ -13,10 +13,26 @@ pub struct EncodingMap {
     inverse_map: InverseMap,
 }
 
+pub type Code = String;
+
+trait Codeable {
+    fn new_code() -> Code;
+    fn extend_code(&self, bit: char) -> Code;
+}
+impl Codeable for Code {
+    fn new_code() -> Code {
+        String::new()
+    }
+
+    fn extend_code(&self, bit: char) -> Code {
+        format!("{}{}", self, bit)
+    }
+}
+
 impl EncodingMap {
     pub fn new(huffman_tree: &Node) -> Result<Self> {
         let mut map = Map::new();
-        Self::build_encoding_map(huffman_tree, &mut map, "");
+        Self::build_encoding_map(huffman_tree, &mut map, &Code::new_code());
 
         let inverse_map = map.iter().map(|(k, v)| (v.clone(), *k)).collect();
 
@@ -41,17 +57,17 @@ impl EncodingMap {
     }
 
     /// Creates a Hash Map of the encoding of every u8 within a given Huffman Tree. Left node edges are 0s and right node edges are 1s
-    fn build_encoding_map(node: &Node, map: &mut Map, code: &str) {
+    fn build_encoding_map(node: &Node, map: &mut Map, code: &Code) {
         match node.value {
             Some(value) => {
                 map.insert(value, code.to_string());
             }
             None => {
                 if let Some(left) = &node.left {
-                    Self::build_encoding_map(left, map, &format!("{}{}", code, "0"));
+                    Self::build_encoding_map(left, map, &code.extend_code('0'));
                 }
                 if let Some(right) = &node.right {
-                    Self::build_encoding_map(right, map, &format!("{}{}", code, "1"));
+                    Self::build_encoding_map(right, map, &code.extend_code('1'));
                 }
             }
         }
