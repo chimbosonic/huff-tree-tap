@@ -1,11 +1,33 @@
-use crate::error::Result;
+use crate::data::ToFromChar;
+use crate::data::{Bit, BitVector};
 use crate::huffman_tree::Node;
+use crate::{data::BitVec, error::Result};
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-type Map = HashMap<u8, String>;
-type InverseMap = HashMap<String, u8>;
+type Map = HashMap<u8, BitVec>;
+type InverseMap = HashMap<BitVec, u8>;
+
+trait MapTrait {
+    fn to_string_map(&self) -> HashMap<u8, String>;
+}
+
+trait InverseMapTrait {
+    fn to_string_map(&self) -> HashMap<String, u8>;
+}
+
+impl MapTrait for Map {
+    fn to_string_map(&self) -> HashMap<u8, String> {
+        self.iter().map(|(k, v)| (*k, v.to_string())).collect()
+    }
+}
+
+impl InverseMapTrait for InverseMap {
+    fn to_string_map(&self) -> HashMap<String, u8> {
+        self.iter().map(|(k, v)| (k.to_string(), *v)).collect()
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct EncodingMap {
@@ -13,63 +35,10 @@ pub struct EncodingMap {
     inverse_map: InverseMap,
 }
 
-pub type Bit = u8;
-
-pub type Code = Vec<Bit>;
-
-
-trait ToFromChar {
-    fn to_char(&self) -> char;
-    fn from_char(c: char) -> Self;
-}
-
-impl ToFromChar for Bit {
-    fn to_char(&self) -> char {
-        match self {
-            0 => '0',
-            1 => '1',
-            _ => panic!("Invalid bit"),
-        }
-    }
-
-    fn from_char(c: char) -> Self {
-        match c {
-            '0' => 0,
-            '1' => 1,
-            _ => panic!("Invalid bit"),
-        }
-    }
-}
-
-trait Codeable {
-    fn new_code() -> Code;
-    fn extend_code(&self, bit: char) -> Code;
-    fn to_string(&self) -> String;
-}
-impl Codeable for Code {
-    fn new_code() -> Code {
-        Vec::<u8>::new()
-    }
-
-    fn to_string(&self) -> String {
-        self.iter()
-            .map(|bit| {
-                bit.to_char()
-            })
-            .collect()
-    }
-
-    fn extend_code(&self, bit: char) -> Code {
-        let mut code = self.clone();
-        code.push(Bit::from_char(bit));
-        code
-    }
-}
-
 impl EncodingMap {
     pub fn new(huffman_tree: &Node) -> Result<Self> {
         let mut map = Map::new();
-        Self::build_encoding_map(huffman_tree, &mut map, &Code::new_code());
+        Self::build_encoding_map(huffman_tree, &mut map, &BitVec::new());
 
         let inverse_map = map.iter().map(|(k, v)| (v.clone(), *k)).collect();
 
@@ -77,34 +46,42 @@ impl EncodingMap {
     }
 
     pub fn extract(&self) -> (HashMap<u8, String>, HashMap<String, u8>) {
-        (self.map.clone(), self.inverse_map.clone())
+        (self.map.to_string_map(), self.inverse_map.to_string_map())
     }
 
-    pub fn from(map: Map) -> Self {
+    pub fn from(map: HashMap<u8, String>) -> Self {
+        let map: Map = map
+            .iter()
+            .map(|(k, v)| (*k, BitVec::from_string(v)))
+            .collect();
         let inverse_map = map.iter().map(|(k, v)| (v.clone(), *k)).collect();
         Self { map, inverse_map }
     }
 
-    pub fn get(&self, key: &u8) -> Option<&String> {
+    pub fn get(&self, key: &u8) -> Option<&BitVec> {
         self.map.get(key)
     }
 
-    pub fn get_inverse(&self, key: &str) -> Option<&u8> {
+    pub fn get_inverse(&self, key: &BitVec) -> Option<&u8> {
         self.inverse_map.get(key)
     }
 
     /// Creates a Hash Map of the encoding of every u8 within a given Huffman Tree. Left node edges are 0s and right node edges are 1s
-    fn build_encoding_map(node: &Node, map: &mut Map, code: &Code) {
+    fn build_encoding_map(node: &Node, map: &mut Map, code: &BitVec) {
         match node.value {
             Some(value) => {
-                map.insert(value, Codeable::to_string(code));
+                map.insert(value, code.clone());
             }
             None => {
                 if let Some(left) = &node.left {
-                    Self::build_encoding_map(left, map, &code.extend_code('0'));
+                    let mut code = code.clone();
+                    code.push(Bit::from_char('0'));
+                    Self::build_encoding_map(left, map, &code);
                 }
                 if let Some(right) = &node.right {
-                    Self::build_encoding_map(right, map, &code.extend_code('1'));
+                    let mut code = code.clone();
+                    code.push(Bit::from_char('1'));
+                    Self::build_encoding_map(right, map, &code);
                 }
             }
         }

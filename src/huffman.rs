@@ -1,4 +1,4 @@
-use crate::data::{Padded, PaddedBits, UnPadded, UnPaddedBits};
+use crate::data::{BitVec, Padded, PaddedBits, UnPadded, UnPaddedBits};
 use crate::encoding_map::EncodingMap;
 use crate::encoding_stats::EncodingStats;
 use crate::error::Result;
@@ -85,32 +85,23 @@ impl HuffmanData {
 
     fn huffman_decode(encoded_data: &UnPaddedBits, encoding_map: &EncodingMap) -> Vec<u8> {
         let mut data: Vec<u8> = Vec::new();
-        let mut temp_code = String::new();
-        let mut encoded_data_rev = encoded_data.chars().rev().collect::<String>();
-        loop {
-            match encoding_map.get_inverse(&temp_code) {
-                Some(&byte) => {
-                    temp_code = String::from("");
-                    data.push(byte);
-                }
-                None => match encoded_data_rev.pop() {
-                    Some(code) => {
-                        temp_code.push(code);
-                    }
-                    None => {
-                        break;
-                    }
-                },
+        let mut temp_code = BitVec::new();
+
+        for code_bit in encoded_data {
+            temp_code.push(*code_bit);
+            if let Some(&byte) = encoding_map.get_inverse(&temp_code) {
+                temp_code = BitVec::new();
+                data.push(byte);
             }
         }
         data
     }
 
     fn huffman_encode(data: &[u8], encoding_map: &EncodingMap) -> UnPaddedBits {
-        let mut encoded_data = String::new();
+        let mut encoded_data = UnPaddedBits::new();
         for c in data {
             if let Some(code) = encoding_map.get(c) {
-                encoded_data += code;
+                encoded_data.extend_from_slice(code);
             }
         }
         encoded_data
@@ -120,6 +111,8 @@ impl HuffmanData {
 // Unit Tests all internal functions must be tested here. One test per function unless impossible
 #[cfg(test)]
 mod tests {
+    use crate::data::BitVector;
+
     use super::*;
 
     #[test]
@@ -143,7 +136,7 @@ mod tests {
         .collect();
         let input_encoding_map = EncodingMap::from(input_encoding_map);
 
-        let expected_data = UnPaddedBits::from(
+        let expected_data = UnPaddedBits::from_string(
             "11110010101110011011100100110111100001101110111011110001011001100010010",
         );
 
@@ -154,7 +147,7 @@ mod tests {
 
     #[test]
     fn test_huffman_decode() {
-        let input_data = UnPaddedBits::from(
+        let input_data = UnPaddedBits::from_string(
             "11110010101110011011100100110111100001101110111011110001011001100010010",
         );
         let input_encoding_map: HashMap<u8, String> = [
@@ -178,7 +171,11 @@ mod tests {
         let expected_data: Vec<u8> = Vec::from("this is a test string!");
 
         let test_output = HuffmanData::huffman_decode(&input_data, &input_encoding_map);
-
+        println!("{:?}", input_encoding_map.extract());
         assert_eq!(expected_data, test_output);
+        assert_eq!(
+            String::from_utf8(expected_data).unwrap(),
+            String::from_utf8(test_output).unwrap()
+        );
     }
 }
