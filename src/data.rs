@@ -54,13 +54,36 @@ pub trait UnPadded {
 
 trait ToByte {
     fn to_byte(&self) -> Result<u8>;
+    fn from_byte(byte: u8) -> Self;
 }
 
 impl ToByte for Byte {
     fn to_byte(&self) -> Result<u8> {
-        u8::from_str_radix(&self.to_string(), 2).map_err(|_| {
-            HuffmanError::ByteStringConversionError("Binary String passed contained a non-bit 0/1")
-        })
+        let mut byte = 0u8;
+        for &bit in self {
+            if bit != 0 && bit != 1 {
+                return Err(HuffmanError::ByteStringConversionError(
+                    "Non-bit value encountered",
+                ));
+            }
+            byte = (byte << 1) | bit;
+        }
+        Ok(byte)
+    }
+
+    fn from_byte(byte: u8) -> Self {
+        let mut byte_vec = BitVec::with_capacity(8);
+        for i in 0..8 {
+            let bit = (byte >> i) & 1;
+            byte_vec.push(bit);
+        }
+
+        byte_vec.reverse();
+
+        while byte_vec.first() == Some(&0) {
+            byte_vec.remove(0);
+        }
+        byte_vec
     }
 }
 
@@ -72,14 +95,13 @@ pub trait Padded {
 
 impl Padded for PaddedBits {
     fn unpad(&self) -> UnPaddedBits {
-        let mut data = UnPaddedBits::new();
-        let mut temp_padded_byte = PaddedBits::new();
-
+        let mut data = UnPaddedBits::with_capacity(self.len());
+        let mut temp_padded_byte = PaddedBits::with_capacity(8);
         for bit in self {
             if temp_padded_byte.len() > 7 {
                 let (_, byte) = temp_padded_byte.split_at(1);
                 data.extend_from_slice(byte);
-                temp_padded_byte = PaddedBits::new();
+                temp_padded_byte.clear();
             }
             temp_padded_byte.push(*bit);
         }
@@ -89,23 +111,22 @@ impl Padded for PaddedBits {
     }
 
     fn from_vec_u8(u8_vec: &[u8]) -> PaddedBits {
-        let mut bin_string = PaddedBits::new();
+        let mut bit_vec = PaddedBits::with_capacity(8 * u8_vec.len());
+
         for byte in u8_vec {
-            let byte = format!("{:b}", byte);
-            let byte = BitVec::from_string(byte.as_str());
-            bin_string.extend_from_slice(&byte);
+            bit_vec.extend_from_slice(&Byte::from_byte(*byte));
         }
-        bin_string
+        bit_vec
     }
 
     fn to_vec_u8(&self) -> Result<Vec<u8>> {
-        let mut temp_byte = Byte::new();
-        let mut u8_vec: Vec<u8> = Vec::new();
+        let mut temp_byte = Byte::with_capacity(8);
+        let mut u8_vec: Vec<u8> = Vec::with_capacity(self.len() / 8);
 
         for bit in self {
             if temp_byte.len() == 8 {
                 u8_vec.push(temp_byte.to_byte()?);
-                temp_byte = Byte::new();
+                temp_byte.clear();
             }
             temp_byte.push(*bit);
         }
@@ -117,7 +138,7 @@ impl Padded for PaddedBits {
 impl UnPadded for UnPaddedBits {
     fn pad(&self) -> PaddedBits {
         let mut padded_bits = PaddedBits::new();
-        let mut temp_padded_byte = Byte::new();
+        let mut temp_padded_byte = Byte::with_capacity(8);
         temp_padded_byte.push(1);
 
         for bit in self {

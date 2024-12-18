@@ -101,3 +101,25 @@ fn test_bench() {
 
     assert_eq!(encoded_data.decode().unwrap(), unencoded_data);
 }
+
+
+#[test]
+fn test_large_payload_10_000_000() {
+    let mut unencoded_data = Vec::<u8>::with_capacity(640_000_000);
+    for _ in 0..10_000_000 {
+        unencoded_data.append(&mut vec![b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h']);
+    }
+    let encoded_data = HuffmanData::new(&unencoded_data).unwrap();
+    let decoded_data = encoded_data.decode().unwrap();
+
+    assert_eq!(
+        encoded_data.stats,
+        EncodingStats {
+            data_size: 640000000.0,
+            encoded_size: 274285730.0,
+            ratio: 57.142853,
+        }
+    );
+
+    assert_eq!(decoded_data, unencoded_data);
+}

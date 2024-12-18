@@ -34,7 +34,7 @@ impl Node {
 /// We sort the frequency list alphabetically then we sort it by frequency to give us consitancy in the tree we generate
 pub fn build(frequency_map: &FrequencyMap) -> Result<Node> {
     //Create a Vector of Nodes containing each u8 and their frequency
-    let mut freq_list: Vec<Node> = Vec::new();
+    let mut freq_list: Vec<Node> = Vec::with_capacity(frequency_map.len());
     for (&data, &freq) in frequency_map {
         freq_list.push(Node::new_leaf(freq, Some(data)));
     }

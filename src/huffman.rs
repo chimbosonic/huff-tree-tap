@@ -84,13 +84,18 @@ impl HuffmanData {
     }
 
     fn huffman_decode(encoded_data: &UnPaddedBits, encoding_map: &EncodingMap) -> Vec<u8> {
-        let mut data: Vec<u8> = Vec::new();
-        let mut temp_code = BitVec::new();
+        let mut data: Vec<u8> = Vec::with_capacity(encoded_data.len());
+        let mut code = BitVec::with_capacity(encoding_map.get_longest_code());
+        let min_len = encoding_map.get_shortest_code();
 
         for code_bit in encoded_data {
-            temp_code.push(*code_bit);
-            if let Some(&byte) = encoding_map.get_inverse(&temp_code) {
-                temp_code = BitVec::new();
+            code.push(*code_bit);
+            if code.len() < min_len {
+                continue;
+            }
+
+            if let Some(&byte) = encoding_map.get_inverse(&code) {
+                code.clear();
                 data.push(byte);
             }
         }

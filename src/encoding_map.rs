@@ -62,6 +62,22 @@ impl EncodingMap {
         self.map.get(key)
     }
 
+    pub fn get_shortest_code(&self) -> usize {
+        if let Some(el) = self.inverse_map.keys().min_by_key(|v| v.len()) {
+            el.len()
+        } else {
+            0
+        }
+    }
+
+    pub fn get_longest_code(&self) -> usize {
+        if let Some(el) = self.inverse_map.keys().max_by_key(|v| v.len()) {
+            el.len()
+        } else {
+            0
+        }
+    }
+
     pub fn get_inverse(&self, key: &BitVec) -> Option<&u8> {
         self.inverse_map.get(key)
     }
@@ -123,7 +139,7 @@ mod tests {
 
         // Create a encoding map from the tree this we can test better
         let test_output = EncodingMap::new(&huffman_tree).unwrap();
-
+        assert_eq!(test_output.get_shortest_code(), 2);
         assert_eq!(expected_data, test_output);
     }
 }
