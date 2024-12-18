@@ -102,7 +102,6 @@ fn test_bench() {
     assert_eq!(encoded_data.decode().unwrap(), unencoded_data);
 }
 
-
 #[test]
 fn test_large_payload_10_000_000() {
     let mut unencoded_data = Vec::<u8>::with_capacity(640_000_000);
