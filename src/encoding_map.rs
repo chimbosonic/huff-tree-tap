@@ -3,7 +3,6 @@ use crate::data::{Bit, BitVector};
 use crate::huffman_tree::Node;
 use crate::{data::BitVec, error::Result};
 
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 type Map = HashMap<u8, BitVec>;
@@ -29,7 +28,7 @@ impl InverseMapTrait for InverseMap {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct EncodingMap {
     map: Map,
     inverse_map: InverseMap,

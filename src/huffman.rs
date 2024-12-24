@@ -5,11 +5,10 @@ use crate::error::Result;
 use crate::frequency_map::{FrequencyMap, FrequencyMapping};
 use crate::huffman_tree::{self, Node};
 
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Huffman encoded data
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug)]
 pub struct HuffmanData {
     /// The encoded data as a `Vec<u8>`
     pub encoded_data: Vec<u8>,
