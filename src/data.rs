@@ -141,6 +141,10 @@ impl Padded for PaddedBits {
 
 impl UnPadded for UnPaddedBits {
     fn pad(&self) -> PaddedBits {
+        if self.is_empty() {
+            return PaddedBits::new();
+        }
+
         let mut padded_bits = PaddedBits::new();
         let mut temp_padded_byte = Byte::with_capacity(8);
         temp_padded_byte.push(1);
@@ -207,6 +211,13 @@ mod tests {
         let test_output = PaddedBits::from_vec_u8(&input_data);
 
         assert_eq!(expected_data, test_output);
+    }
+
+    #[test]
+    fn test_pad_empty() {
+        let unpadded = UnPaddedBits::new();
+        let result = unpadded.pad();
+        assert!(result.is_empty());
     }
 
     #[test]
