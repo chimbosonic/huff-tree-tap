@@ -1,4 +1,4 @@
-/// Encoding stats for a given data size and endcoded data size
+/// Encoding stats for a given data size and encoded data size
 #[derive(Debug, PartialEq)]
 pub struct EncodingStats {
     /// Size of the data
