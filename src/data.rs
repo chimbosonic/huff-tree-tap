@@ -95,6 +95,10 @@ pub trait Padded {
 
 impl Padded for PaddedBits {
     fn unpad(&self) -> UnPaddedBits {
+        if self.is_empty() {
+            return UnPaddedBits::new();
+        }
+
         let mut data = UnPaddedBits::with_capacity(self.len());
         let mut temp_padded_byte = PaddedBits::with_capacity(8);
         for bit in self {
@@ -203,5 +207,12 @@ mod tests {
         let test_output = PaddedBits::from_vec_u8(&input_data);
 
         assert_eq!(expected_data, test_output);
+    }
+
+    #[test]
+    fn test_unpad_empty() {
+        let padded = PaddedBits::from_vec_u8(&[]);
+        let result = padded.unpad();
+        assert!(result.is_empty());
     }
 }
