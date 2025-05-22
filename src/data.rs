@@ -124,6 +124,10 @@ impl Padded for PaddedBits {
     }
 
     fn to_vec_u8(&self) -> Result<Vec<u8>> {
+        if self.is_empty() {
+            return Ok(Vec::new());
+        }
+
         let mut temp_byte = Byte::with_capacity(8);
         let mut u8_vec: Vec<u8> = Vec::with_capacity(self.len() / 8);
 
@@ -225,5 +229,12 @@ mod tests {
         let padded = PaddedBits::from_vec_u8(&[]);
         let result = padded.unpad();
         assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_padded_bits_to_u8_empty() {
+        let input_data = PaddedBits::new();
+        let test_output = input_data.to_vec_u8().unwrap();
+        assert!(test_output.is_empty());
     }
 }
