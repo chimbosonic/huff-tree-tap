@@ -30,8 +30,8 @@ impl Node {
     }
 }
 
-/// Creates a a Huffman Coding Tree with given Frequency Map
-/// We sort the frequency list alphabetically then we sort it by frequency to give us consitancy in the tree we generate
+/// Creates a Huffman Coding Tree with the given Frequency Map.
+/// We sort the frequency list alphabetically then we sort it by frequency to give us consistency in the tree we generate
 pub fn build(frequency_map: &FrequencyMap) -> Result<Node> {
     //Create a Vector of Nodes containing each u8 and their frequency
     let mut freq_list: Vec<Node> = Vec::with_capacity(frequency_map.len());
